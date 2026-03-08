@@ -1,0 +1,1 @@
+import{_ as r,i as t,w as a,g as o,r as s,o as c}from"./index-7gKs68FC.js";const l={};function _(d,e){const n=s("el-card");return c(),t(n,null,{default:a(()=>[...e[0]||(e[0]=[o("h3",null,"欢迎使用后台管理系统脚手架",-1),o("p",null,"当前页面用于承载系统概览信息。",-1)])]),_:1})}const p=r(l,[["render",_]]);export{p as default};

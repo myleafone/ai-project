@@ -1,0 +1,1 @@
+function o(e){const s=new Map;e.forEach(r=>s.set(r.id,{...r,children:[]}));const n=[];return s.forEach(r=>{if(r.parentId===0){n.push(r);return}const t=s.get(r.parentId);t&&t.children.push(r)}),n.sort((r,t)=>(r.sort||0)-(t.sort||0))}export{o as b};

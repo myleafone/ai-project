@@ -1,0 +1,1 @@
+import{v as r}from"./index-7gKs68FC.js";function o(e){return r.get("/api/roles",{params:e})}function i(e){return r.post("/api/roles",e)}function s(e){return r.delete(`/api/roles/${e}`)}function n(){return r.get("/api/roles/all")}function l(e){return r.get(`/api/roles/${e}/menu-ids`)}export{s as d,n as l,o as p,l as r,i as s};

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JSON 维护与展示</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #1a1d23;
+      color: #e6edf3;
+      min-height: 100vh;
+    }
+    .header {
+      padding: 12px 20px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #e6edf3;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn:hover { background: #30363d; border-color: #484f58; }
+    .btn.primary { background: #238636; border-color: #238636; color: #fff; }
+    .btn.primary:hover { background: #2ea043; }
+    .btn.danger { background: #da3633; border-color: #da3633; color: #fff; }
+    .btn.danger:hover { background: #f85149; }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      height: calc(100vh - 52px);
+    }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #30363d;
+      min-height: 0;
+    }
+    .panel:last-child { border-right: none; }
+    .panel-title {
+      padding: 8px 16px;
+      background: #21262d;
+      border-bottom: 1px solid #30363d;
+      font-size: 13px; font-weight: 600; color: #8b949e;
+    }
+    .editor-wrap, .tree-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+    }
+    #editor {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+      padding: 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+    }
+    #editor::placeholder { color: #484f58; }
+    .tree-wrap { overflow: auto; }
+    .tree {
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .tree-node { margin-left: 0; }
+    .tree-children { margin-left: 18px; border-left: 1px solid #30363d; padding-left: 8px; }
+    .tree-key { color: #79c0ff; }
+    .tree-string { color: #a5d6ff; }
+    .tree-number { color: #79c0ff; }
+    .tree-bool { color: #ff7b72; }
+    .tree-null { color: #8b949e; }
+    .tree-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: inline-block;
+      width: 16px;
+      color: #8b949e;
+      margin-right: 2px;
+    }
+    .tree-toggle:hover { color: #e6edf3; }
+    .tree-leaf { padding-left: 18px; }
+    .status {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #8b949e;
+      border-top: 1px solid #30363d;
+      background: #21262d;
+    }
+    .status.error { color: #f85149; }
+    .status.ok { color: #3fb950; }
+    .tool-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tab-row { display: flex; gap: 4px; margin-bottom: 8px; }
+    .tab {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #8b949e;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .tab.active { background: #388bfd; border-color: #388bfd; color: #fff; }
+    .tab:hover:not(.active) { background: #30363d; color: #e6edf3; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>JSON 维护与展示</h1>
+    <div class="tool-row">
+      <button type="button" class="btn" id="btnFormat">格式化</button>
+      <button type="button" class="btn" id="btnValidate">校验</button>
+      <button type="button" class="btn primary" id="btnSample">加载示例</button>
+      <button type="button" class="btn" id="btnCopy">复制 JSON</button>
+      <button type="button" class="btn" id="btnDownload">下载文件</button>
+      <button type="button" class="btn danger" id="btnClear">清空</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-title">编辑区（直接修改 JSON 文本）</div>
+      <div class="editor-wrap">
+        <textarea id="editor" placeholder='在此粘贴或输入 JSON，例如：{"ediConfig": {"enable": true, "types": ["A","B"]}}'></textarea>
+      </div>
+      <div class="status" id="status">就绪。输入或粘贴 JSON 后点击「格式化」或「校验」。</div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">树形展示</div>
+      <div class="tree-wrap">
+        <div id="treeRoot" class="tree"></div>
+      </div>
+      <div class="status" id="treeStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    const SAMPLE = {
+      "ediConfig": {
+        "types": ["SALE_DEALER_PRO", "ORDER_DEALER_PRO"],
+        "enable": true,
+        "startDate": 1720627200000,
+        "dealerDcid": "CC0251717",
+        "giftSpecCodes": ["NEW-SPEC-001", "NEW-SPEC-002", "NEW-SPEC-003"],
+        "forbidTradeIds": [],
+        "forbidSpecCodes": ["6", "DV11DB94A0GDSC", "WW12DBLB84GNSC"],
+        "dealerCustomerId": "CS0317464"
+      }
+    };
+
+    const editor = document.getElementById('editor');
+    const treeRoot = document.getElementById('treeRoot');
+    const statusEl = document.getElementById('status');
+    const treeStatusEl = document.getElementById('treeStatus');
+
+    function setStatus(msg, isError) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status' + (isError ? ' error' : ' ok');
+    }
+
+    function setTreeStatus(msg) {
+      treeStatusEl.textContent = msg || '';
+    }
+
+    function parseJSON() {
+      const raw = editor.value.trim();
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return undefined;
+      }
+    }
+
+    function renderTree(obj, container) {
+      container.innerHTML = '';
+      if (obj === null || obj === undefined) {
+        container.textContent = '（无内容或 JSON 无效）';
+        return;
+      }
+      function span(cls, text) {
+        const s = document.createElement('span');
+        s.className = cls;
+        s.textContent = text;
+        return s;
+      }
+      function render(val, key, parentEl) {
+        const isArray = Array.isArray(val);
+        const isObject = val !== null && typeof val === 'object' && !isArray;
+        if (isObject || isArray) {
+          const wrap = document.createElement('div');
+          wrap.className = 'tree-node';
+          const toggle = document.createElement('span');
+          toggle.className = 'tree-toggle';
+          toggle.textContent = '▼';
+          const keySpan = key !== undefined ? span('tree-key', (isArray ? '[' + key + ']' : key) + ': ') : null;
+          const open = document.createElement('span');
+          open.textContent = isArray ? '[' : '{';
+          open.style.color = '#8b949e';
+          wrap.appendChild(toggle);
+          if (keySpan) wrap.appendChild(keySpan);
+          wrap.appendChild(open);
+          const children = document.createElement('div');
+          children.className = 'tree-children';
+          const entries = isArray ? val.map((v, i) => [String(i), v]) : Object.entries(val);
+          entries.forEach(([k, v]) => render(v, k, children));
+          const close = document.createElement('span');
+          close.textContent = isArray ? ']' : '}';
+          close.style.color = '#8b949e';
+          wrap.appendChild(children);
+          wrap.appendChild(close);
+          parentEl.appendChild(wrap);
+          toggle.addEventListener('click', () => {
+            children.style.display = children.style.display === 'none' ? '' : 'none';
+            toggle.textContent = children.style.display === 'none' ? '▶' : '▼';
+          });
+        } else {
+          const line = document.createElement('div');
+          line.className = 'tree-leaf';
+          const keyPart = key !== undefined ? span('tree-key', key + ': ') : null;
+          let valPart;
+          if (typeof val === 'string') valPart = span('tree-string', JSON.stringify(val));
+          else if (typeof val === 'number') valPart = span('tree-number', String(val));
+          else if (typeof val === 'boolean') valPart = span('tree-bool', val ? 'true' : 'false');
+          else valPart = span('tree-null', 'null');
+          if (keyPart) line.appendChild(keyPart);
+          line.appendChild(valPart);
+          parentEl.appendChild(line);
+        }
+      }
+      if (Array.isArray(obj)) {
+        obj.forEach((v, i) => render(v, String(i), container));
+      } else {
+        Object.entries(obj).forEach(([k, v]) => render(v, k, container));
+      }
+    }
+
+    function updateTree() {
+      const data = parseJSON();
+      if (data === undefined) {
+        treeRoot.innerHTML = '<span class="tree-null">（JSON 无效，请修正后查看树形）</span>';
+        setTreeStatus('');
+        return;
+      }
+      renderTree(data, treeRoot);
+      const count = typeof data === 'object' && data !== null ? (Array.isArray(data) ? data.length : Object.keys(data).length) : 0;
+      setTreeStatus('已解析为树形 · 顶层键/项数: ' + count);
+    }
+
+    editor.addEventListener('input', () => { updateTree(); });
+    editor.addEventListener('blur', () => { updateTree(); });
+
+    document.getElementById('btnFormat').addEventListener('click', () => {
+      const data = parseJSON();
+      if (data === undefined) {
+        setStatus('JSON 格式错误，无法格式化。', true);
+        return;
+      }
+      editor.value = JSON.stringify(data, null, 2);
+      updateTree();
+      setStatus('已格式化。', false);
+    });
+
+    document.getElementById('btnValidate').addEventListener('click', () => {
+      const data = parseJSON();
+      if (data === undefined) {
+        setStatus('校验失败：不是合法的 JSON。', true);
+        return;
+      }
+      setStatus('校验通过。', false);
+      updateTree();
+    });
+
+    document.getElementById('btnSample').addEventListener('click', () => {
+      editor.value = JSON.stringify(SAMPLE, null, 2);
+      updateTree();
+      setStatus('已加载示例数据（ediConfig）。', false);
+    });
+
+    document.getElementById('btnCopy').addEventListener('click', () => {
+      const raw = editor.value.trim();
+      if (!raw) {
+        setStatus('无内容可复制。', true);
+        return;
+      }
+      const data = parseJSON();
+      const text = data !== undefined ? JSON.stringify(data, null, 2) : raw;
+      navigator.clipboard.writeText(text).then(() => setStatus('已复制到剪贴板。', false)).catch(() => setStatus('复制失败。', true));
+    });
+
+    document.getElementById('btnDownload').addEventListener('click', () => {
+      const data = parseJSON();
+      if (data === undefined) {
+        setStatus('JSON 无效，无法下载。', true);
+        return;
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'data.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('已下载 data.json。', false);
+    });
+
+    document.getElementById('btnClear').addEventListener('click', () => {
+      editor.value = '';
+      treeRoot.innerHTML = '';
+      setTreeStatus('');
+      setStatus('已清空。', false);
+    });
+
+    updateTree();
+  </script>
+</body>
+</html>
